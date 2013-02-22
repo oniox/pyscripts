@@ -38,19 +38,21 @@ def parseSymbolRawInput(symbolData):
 	emailContentBuf = []
 	validateSourceHdrFtr(symbolData, emailContentBuf)
 	
+	print emailContentBuf
+	
 	copyData = symbolData[1:]
 	
 	currentLine = copyData[0].split(',')
 	isSymRecComplete = len(currentLine) == len(symbolHeaderMap)
-	print isSymRecComplete
+	#print isSymRecComplete
 	
 	isTickerSymbolBlank = len(currentLine[TICKER_SYMBOL_IDX-1]) == 0
-	print isTickerSymbolBlank
+	#print isTickerSymbolBlank
 	isShortSellRestrictedEmpty = len(currentLine[SYM_SHORT_SELL_IDX-1]) == 0
-	print isShortSellRestrictedEmpty
+	#print isShortSellRestrictedEmpty
 	
 	isShortSellRestrictedValid = isbool(currentLine[SYM_SHORT_SELL_IDX-1])
-	print isShortSellRestrictedValid
+	#print isShortSellRestrictedValid
 
 def parseSymbolRec(rec):
 	pass
@@ -61,9 +63,14 @@ def validateSourceHdrFtr(sourceData, emailContentBuf):
 	footer = getRawInputFooter(sourceData)
 	
 	dtValid = isDateValid(header[HEADER_DATE_IDX])
-	recNumMatch = int(header[HEADER_REC_IDX]) == int(footer)
-	print 'Date Valid : {0}'.format(dtValid)
-	print 'Rec Num match :', recNumMatch
+	hdrRecNum = int(header[HEADER_REC_IDX]);
+	ftrRecNum = int(footer);
+	
+	recNumMatch = hdrRecNum == ftrRecNum
+	emailContentBuf.append('Header date {0} is valid '.format(header[HEADER_DATE_IDX]))
+	
+	if recNumMatch:	
+		emailContentBuf.append('Header ({0}) and footer  ({1}) record numbers match'.format(hdrRecNum, ftrRecNum))
 
 def getRawInputHeader(inputdata):	
 	header = inputdata[0]	
@@ -96,6 +103,8 @@ def rawSymbolDataToIxEye(symbolData):
 
 
 def rawClientConfigToIxEye(clientConfigData):
+	emailContentBuf = []
+	validateSourceHdrFtr(clientConfigData, emailContentBuf)
 	pass
 	
 def sendmail(content):
@@ -114,45 +123,11 @@ lines = f.readlines()
 
 parseSymbolRawInput(lines)
 
-#lineTokens=lines[1].split(',')
-#print lineTokens
-
 """
-for x,token in enumerate(lineTokens):
-	mapval = symbolHeaderMap[x+1]
-	validator = mapval[1]	
-	print validator(token)	
-	#print token
+test.txt
+13/12/2012,4
+TD,N,0.01,2,70.08,Y
+BMO,Y,0.01,2,50.08,Y
+RY,Y,0.01,2,60.08,Y
+4
 """
-	
-#print isDateValid(getRawInputHeader(lines)[0])
-#print isDateValid('12/12/2012')
-
-
-
-#header=lines[0]
-
-#print 'Header info : {0}'.format(header)
-
-#headerToks = header.split(',')
-#if len(headerToks) is 2:
-#	headerRecNum = headerToks[1]
-#	headerDate = headerToks[0]
-	
-#footerRecNum = lines[-1]
-
-#print headerRecNum
-#print headerDate
-#print symbolHeaderMap[1][0]
-#for line in lines:
-#	print line
-
-
-data='CLIENT SESSION ID,VENUE SESSION ID,PROTOCOL VERSION,VENUE REMOTE IP ADDRESS,CARD ID,VENUE REMOTE PORT,CLIENT REMOTE PORT,CANCEL ON DISCONNECT,HEART-BEAT INTERVAL,VENUE USERNAME,CLIENT USER NAME,VENUE PASSWORD,CLIENT PASSWORD,VENUE SENDERCOMPID,CLIENT SENDERCOMID,VENUE TARGETCOMPID,CLIENT TARGETCOMPID,VENUE SENDERSUBID,CLIENT SENDERSUBID,VENUE TARGETSUBID,CLIENT TARGETSUBID,CLIENT GATEWAY IP,VENUE GATEWAY IP,ACTIVE'	
-lol=data.split(',')
-print 'Len lol ', len(lol)
-mappy=dict()
-
-for x,l in enumerate(lol):
-	mappy[x+1]=(0,l,'str')	
-print mappy
