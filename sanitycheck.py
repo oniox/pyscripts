@@ -35,13 +35,8 @@ def fetchRawInputData():
 	pass
 
 def parseSymbolRawInput(symbolData):
-	symbolHdr = getRawInputHeader(symbolData)
-	symbolFtr = getRawInputFooter(symbolData)
-	
-	dtValid = isDateValid(symbolHdr[HEADER_DATE_IDX])
-	recNumMatch = int(symbolHdr[HEADER_REC_IDX]) == int(symbolFtr)
-	print 'Date Valid : {0}'.format(dtValid)
-	print 'Rec Num match :', recNumMatch
+	emailContentBuf = []
+	validateSourceHdrFtr(symbolData, emailContentBuf)
 	
 	copyData = symbolData[1:]
 	
@@ -60,9 +55,18 @@ def parseSymbolRawInput(symbolData):
 def parseSymbolRec(rec):
 	pass
 		
+
+def validateSourceHdrFtr(sourceData, emailContentBuf):
+	header = getRawInputHeader(sourceData)
+	footer = getRawInputFooter(sourceData)
+	
+	dtValid = isDateValid(header[HEADER_DATE_IDX])
+	recNumMatch = int(header[HEADER_REC_IDX]) == int(footer)
+	print 'Date Valid : {0}'.format(dtValid)
+	print 'Rec Num match :', recNumMatch
+
 def getRawInputHeader(inputdata):	
-	header=inputdata[0]
-	#print 'Header info : {0}'.format(header)
+	header = inputdata[0]	
 	headerToks = header.split(',')
 	if len(headerToks) is MAX_HEADER_TOK_LEN:
 		return headerToks
