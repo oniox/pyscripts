@@ -24,13 +24,12 @@ symbolHeaderMap={TICKER_SYMBOL_IDX : ('TICKER SYMBOL', str), SYM_SHORT_SELL_IDX 
 #map of client limits column header index to a tuple of its equivalent in original/source client file, label and type (for validation)
 clientLimitsHeaderMap={1:(1,'SESSION ID',str), 2:(3, 'CLIENT ID', str),3:(4,'MAX ORDER SHARES',int),4:(5,'MAX ORDER VALUE',float),5:(6,'DAILY SESSION CONSIDERATION',float),6:(7,'OVERALL CLIENT CONSIDERATION',float),7:(8,'SHORT SELL CHECK',isbool),8:(28,'THRESHOLD',int),9:(29,'THRESHOLDINC',int), 10:(9,'ACTIVE',isbool)}
 
-#CLIENT SESSION ID,VENUE SESSION ID,PROTOCOL VERSION,VENUE REMOTE IP ADDRESS,CARD ID,VENUE REMOTE PORT,CLIENT REMOTE PORT,CANCEL ON DISCONNECT,HEART-BEAT INTERVAL,VENUE USERNAME,CLIENT USER NAME,VENUE PASSWORD,CLIENT PASSWORD,VENUE SENDERCOMPID,CLIENT SENDERCOMID,VENUE TARGETCOMPID,CLIENT TARGETCOMPID,VENUE SENDERSUBID,CLIENT SENDERSUBID,VENUE TARGETSUBID,CLIENT TARGETSUBID,CLIENT GATEWAY IP,VENUE GATEWAY IP,ACTIVE
-sessionConfigHeaderMap={1: ('CLIENT SESSION ID', 1, str), 2: ('VENUE SESSION ID', 2, str), 3: ('PROTOCOL VERSION', 10, str), 4: ('VENUE REMOTE IP ADDRESS', 11, str), 
-	5: ('CARD ID', 14, str), 6: ('VENUE REMOTE PORT', 12, str), 7: ('CLIENT REMOTE PORT', 14,str), 8: ('CANCEL ON DISCONNECT', 21, str), 9: ('HEART-BEAT INTERVAL', 30, str), 
-	10: ('VENUE USERNAME', 15, str), 11: ('CLIENT USER NAME', 22, str), 12: ('VENUE PASSWORD', 16, str), 13: ('CLIENT PASSWORD', 23, str), 14: ('VENUE SENDERCOMPID', 17, str), 
-	15: ('CLIENT SENDERCOMID', 14, str), 16: ('VENUE TARGETCOMPID', 18, str), 17: ('CLIENT TARGETCOMPID', 25, str), 18: ('VENUE SENDERSUBID', 19, str), 19: ('CLIENT SENDERSUBID', 26, str), 
-	20: ('VENUE TARGETSUBID', 20,str), 21: ('CLIENT TARGETSUBID', 27, str), 22: ('CLIENT GATEWAY IP', 30, 'str'), 23: ('VENUE GATEWAY IP', 31, str), 24: ('ACTIVE', 9, str)}
-
+#map of client session config column header index to a tuple of its equivalent in original/source client file, label and type (for validation)
+sessionConfigHeaderMap={1: ( 1, 'CLIENT SESSION ID', str), 2: ( 2, 'VENUE SESSION ID',str), 3: ( 10,'PROTOCOL VERSION', str), 4: (11, 'VENUE REMOTE IP ADDRESS', str), 
+	5: (14, 'CARD ID',str), 6: (12, 'VENUE REMOTE PORT',str), 7: (14,'CLIENT REMOTE PORT', str), 8: ( 21,'CANCEL ON DISCONNECT', str), 9: ( 30, 'HEART-BEAT INTERVAL',str), 
+	10: (15,'VENUE USERNAME', str), 11: (22, 'CLIENT USER NAME', str), 12: (16, 'VENUE PASSWORD',str), 13: (23, 'CLIENT PASSWORD',str), 14: (17,'VENUE SENDERCOMPID', str), 
+	15: (14, 'CLIENT SENDERCOMID',str), 16: (18, 'VENUE TARGETCOMPID',str), 17: (25,'CLIENT TARGETCOMPID', str), 18: (19, 'VENUE SENDERSUBID',str), 19: (26, 'CLIENT SENDERSUBID', str), 
+	20: (20,'VENUE TARGETSUBID',str), 21: (27, 'CLIENT TARGETSUBID',str), 22: (30, 'CLIENT GATEWAY IP','str'), 23: (31,'VENUE GATEWAY IP', str), 24: (9,'ACTIVE',  str)}
 
 def fetchRawInputData():
 	pass
@@ -90,7 +89,11 @@ def rawSymbolDataToIxEye(symbolData):
 		validator = mapval[1]	
 		print validator(token)	
 		#print token		
-		
+
+
+def rawClientConfigToIxEye(clientConfigData):
+	pass
+	
 def sendmail(content):
 	pass
 
@@ -140,13 +143,12 @@ for x,token in enumerate(lineTokens):
 #for line in lines:
 #	print line
 
-"""	
+
 data='CLIENT SESSION ID,VENUE SESSION ID,PROTOCOL VERSION,VENUE REMOTE IP ADDRESS,CARD ID,VENUE REMOTE PORT,CLIENT REMOTE PORT,CANCEL ON DISCONNECT,HEART-BEAT INTERVAL,VENUE USERNAME,CLIENT USER NAME,VENUE PASSWORD,CLIENT PASSWORD,VENUE SENDERCOMPID,CLIENT SENDERCOMID,VENUE TARGETCOMPID,CLIENT TARGETCOMPID,VENUE SENDERSUBID,CLIENT SENDERSUBID,VENUE TARGETSUBID,CLIENT TARGETSUBID,CLIENT GATEWAY IP,VENUE GATEWAY IP,ACTIVE'	
 lol=data.split(',')
 print 'Len lol ', len(lol)
 mappy=dict()
 
 for x,l in enumerate(lol):
-	mappy[x+1]=(l,0,'str')	
+	mappy[x+1]=(0,l,'str')	
 print mappy
-"""
