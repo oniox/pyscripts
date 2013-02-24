@@ -18,11 +18,14 @@ MAX_FOOTER_LEN = 1;
 SYMBOL_DATE_FORMAT='%d/%m/%Y'
 TICKER_SYMBOL_IDX = 1
 SYM_SHORT_SELL_IDX = 2
+
 #map of symbol column header index to a tuple of its label and data type (for validation)
 symbolHeaderMap={TICKER_SYMBOL_IDX : ('TICKER SYMBOL', str), SYM_SHORT_SELL_IDX : ('SHORT SELL RESTRICTED', isbool), 3 :  ('MIN TICK SIZE', float), 4 : ('MAX PRICE DEVIATION', int), 5 : ('PREVIOUS CLOSE PRICE', float) , 6 : ('ACTIVE', bool)}
 
+COL_HDR_IDX = 1 #index of column header in tuple
+
 #map of client limits column header index to a tuple of its equivalent in original/source client file, label and type (for validation)
-clientLimitsHeaderMap={1:(1,'SESSION ID',str), 2:(3, 'CLIENT ID', str),3:(4,'MAX ORDER SHARES',int),4:(5,'MAX ORDER VALUE',float),5:(6,'DAILY SESSION CONSIDERATION',float),6:(7,'OVERALL CLIENT CONSIDERATION',float),7:(8,'SHORT SELL CHECK',isbool),8:(28,'THRESHOLD',int),9:(29,'THRESHOLDINC',int), 10:(9,'ACTIVE',isbool)}
+clientLimitsHeaderMap={1:(1,'SESSION ID',str), 3:(2, 'CLIENT ID', str),4:(3,'MAX ORDER SHARES',int),5:(4,'MAX ORDER VALUE',float),6:(5,'DAILY SESSION CONSIDERATION',float),7:(6,'OVERALL CLIENT CONSIDERATION',float),8:(7,'SHORT SELL CHECK',isbool),28:(8,'THRESHOLD',int),29:(9,'THRESHOLDINC',int), 9:(10,'ACTIVE',isbool)}
 
 #map of client session config column header index to a tuple of its equivalent in original/source client file, label and type (for validation)
 sessionConfigHeaderMap={1: ( 1, 'CLIENT SESSION ID', str), 2: ( 2, 'VENUE SESSION ID',str), 3: ( 10,'PROTOCOL VERSION', str), 4: (11, 'VENUE REMOTE IP ADDRESS', str), 
@@ -41,7 +44,7 @@ def parseSymbolRawInput(symbolData):
 	print emailContentBuf
 	
 	copyData = symbolData[1:]
-	
+                
 	currentLine = copyData[0].split(',')
 	isSymRecComplete = len(currentLine) == len(symbolHeaderMap)
 	#print isSymRecComplete
@@ -106,15 +109,28 @@ def rawClientConfigToIxEye(clientConfigData):
 	emailContentBuf = []
 	validateSourceHdrFtr(clientConfigData, emailContentBuf)
         #take copy of records (omit header and footer)
-	records = clientConfigData[1:len(clientConfigData) - 1]
+	clientRecords = clientConfigData[1:len(clientConfigData) - 1]
+	ixEyeData = [] #target data list 
+	#build column header 
+	ixEyeData.append(','.join(col[COL_HDR_IDX] for col in clientLimitsHeaderMap.values()))
 
-	for rec in records:
-                tokens = rec.split(',');
-                for tok in tokens:
+        #using data in predefined map, map each client record to ixEye equivalent
+        for clientRow in clientRecords:
+                clientFields = clientRow.split(',')
+                ixEyeRow = []
+                for colIdx in clientLimitsHeaderMap.keys():
+                        colTuple = clientLimitsHeaderMap[colIdx]
+                        ixEyeRecord.append(clientFields[colTuple[0]])
+                ixEyeData.append(','.join(ixEyeRecord))
+                
+	for colIdx in clientLimitsHeaderMap.keys():
+                rec = records[colIdx]
+                if len(rec) == len(clientLimitsHeaderMap):
+                        tokens = rec.split(',');
+                        for i,tok in enumerate(tokens):
+                                client
                         
-
-	
-	pass
+        pass
 	
 def sendmail(content):
 	pass
