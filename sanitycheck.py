@@ -105,6 +105,15 @@ def rawSymbolDataToIxEye(symbolData):
 def rawClientConfigToIxEye(clientConfigData):
 	emailContentBuf = []
 	validateSourceHdrFtr(clientConfigData, emailContentBuf)
+        #take copy of records (omit header and footer)
+	records = clientConfigData[1:len(clientConfigData) - 1]
+
+	for rec in records:
+                tokens = rec.split(',');
+                for tok in tokens:
+                        
+
+	
 	pass
 	
 def sendmail(content):
@@ -122,6 +131,8 @@ if not f:
 lines = f.readlines()
 
 parseSymbolRawInput(lines)
+
+rawClientConfigToIxEye(lines)
 
 """
 test.txt
