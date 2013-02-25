@@ -107,10 +107,20 @@ def parseSymbolRec(rec):
 		
 
 def validateSourceHdrFtr(sourceData, emailContentBuf):
-	header = getRawInputHeader(sourceData)
+	
+	try:
+		header = getRawInputHeader(sourceData)
+		dtValid = isDateValid(header[HEADER_DATE_IDX])
+	except Exception as e:
+		sendmail('File processing aborted, invalid header %s %s' %header)
+		raise e
+		
 	footer = getRawInputFooter(sourceData)
 	
-	dtValid = isDateValid(header[HEADER_DATE_IDX])
+	
+	
+	
+	
 	hdrRecNum = int(header[HEADER_REC_IDX]);
 	ftrRecNum = int(footer);
 	
