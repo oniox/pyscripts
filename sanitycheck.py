@@ -59,26 +59,30 @@ def loadConfigFile():
 	return configmap
 	"""
         
+def loadSymbolData():		
+	loadRawData(PROP_SYMBOL_DIR,PROP_SYMBOL_FILE)
+	loadRawData(PROP_CLIENTCON_DIR,PROP_CLIENTCON_FILE)
 
-def loadSymbolData():
-	config = loadConfigFile()
-	print config
-	folder = config[PROP_SYMBOL_DIR]
-	file = config[PROP_SYMBOL_FILE]
+def loadRawData(dirConfigKey, fileConfigKey):
+	config = loadConfigFile()	
+	inputdir = config[dirConfigKey].strip()
+	inputfilefmt = config[fileConfigKey]
 	
-	filetoks = file.split('.')	
+	inputfiletoks = inputfilefmt.split('.')	
+	# generate string representation of todays date in pattern specified within input file format 
+	dtToday  = date.today().strftime(inputfiletoks[1])	
+	#lst = os.listdir(inputdir)	
+	#replace date format pattern with result of formatting
+	inputfiletoks[1]=dtToday
+	expectedname =  '.'.join(inputfiletoks)
+	filename  = inputdir.strip() + '/' + expectedname
 	
-	dtToday  = date.today().strftime(filetoks[1])	
-	lst = os.listdir(folder.strip())	
-	filetoks[1]=dtToday
-	expectedname =  '.'.join(filetoks)	
-	print expectedname in  lst
+	f=open(filename.strip())
+	print f.readlines()
 	
 	#filedate=datetime.strptime(filetoks[1], '%d%m%y%H%M')
-	
 	#strlbl = date.today().strftime(filetoks[1])
 	#filetoks[1] = strlbl
-		
 	#if filedate.date == date.today():
 		
 	
