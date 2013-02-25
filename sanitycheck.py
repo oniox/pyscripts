@@ -110,16 +110,14 @@ def validateSourceHdrFtr(sourceData, emailContentBuf):
 	
 	try:
 		header = getRawInputHeader(sourceData)
-		dtValid = isDateValid(header[HEADER_DATE_IDX])
+		print header		
 	except Exception as e:
-		sendmail('File processing aborted, invalid header %s %s' %header)
+		sendmail('File processing aborted, invalid header {0} {1}'.format(header, e))
 		raise e
 		
+	dtValid = isDateValid(header[HEADER_DATE_IDX])
+	print dtValid
 	footer = getRawInputFooter(sourceData)
-	
-	
-	
-	
 	
 	hdrRecNum = int(header[HEADER_REC_IDX]);
 	ftrRecNum = int(footer);
@@ -136,6 +134,7 @@ def getRawInputHeader(inputdata):
 	if len(headerToks) is MAX_HEADER_TOK_LEN:
 		return headerToks
 	else:
+		print '####error'
 		raise Exception('Invalid header {0}, header should be of two values'.format(header))
 		
 
@@ -219,8 +218,9 @@ if len(os.sys.argv) > 1:
 else:
 	configData = loadConfigData()
 
+print configData
 symbolData =  loadSymbolData(configData)
-sendmail(symbolData, configData)
+#sendmail(symbolData, configData)
 #symbolData =  loadSymbolData(configData)
 #ixEyeData = rawSymbolDataToIxEye(symbolData)
 #writeListToFile(ixEyeData, makeOutputFilePath('Symbol', PROP_SYMBOL_FILE, configData))
