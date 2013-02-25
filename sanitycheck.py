@@ -2,6 +2,8 @@ import os
 import io
 from datetime import date
 from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
 
 #functor to handle special (i.e Y/N) boolean validation 	
 def isbool(value):			
@@ -10,7 +12,7 @@ def isbool(value):
 	else: 
 		return bool(0)
 		
-CONFIG_FILE='C:/dev/projects/python/pyscripts/resources/sanitycheck.config'
+CONFIG_FILE='sanitycheck.config'
 
 HEADER_DATE_IDX=0
 HEADER_REC_IDX=1		
@@ -26,6 +28,12 @@ PROP_SYMBOL_DIR='symbol.dir'
 PROP_CLIENTCON_DIR='clientconfig.dir'
 PROP_CLIENTCON_FILE='clientconfig.fileformat'
 PROP_SYMBOL_FILE='symbol.fileformat'
+PROP_IXEYE_OUT_DIR='ixeye.out.dir'
+
+PROP_SMTP_HOST='mail.smtp.host'
+PROP_SMTP_USER='mail.user'
+PROP_SENDER_EMAIL='mail.from'
+PROP_CLIENT_EMAIL='mail.to'
 
 #map of symbol column header index to a tuple of its label and data type (for validation)
 symbolHeaderMap={TICKER_SYMBOL_IDX : ('TICKER SYMBOL', str), SYM_SHORT_SELL_IDX : ('SHORT SELL RESTRICTED', isbool), 3 :  ('MIN TICK SIZE', float), 4 : ('MAX PRICE DEVIATION', int), 5 : ('PREVIOUS CLOSE PRICE', float) , 6 : ('ACTIVE', bool)}
@@ -43,53 +51,37 @@ sessionConfigHeaderMap={1: ( 1, 'CLIENT SESSION ID', str), 2: ( 2, 'VENUE SESSIO
 	20: (20,'VENUE TARGETSUBID',str), 21: (27, 'CLIENT TARGETSUBID',str), 22: (30, 'CLIENT GATEWAY IP','str'), 23: (31,'VENUE GATEWAY IP', str), 24: (9,'ACTIVE',  str)}
 
 
-def loadConfigFile():
-	f = open(CONFIG_FILE, 'r')
+def loadConfigData(configfile=CONFIG_FILE):
+	f = open(configfile, 'r')
 	configs = f.readlines()	
 	configmap = {}
 	
 	for row in configs:
 		configmap.update(([row.split('=')]))
 	return configmap
-	"""
-	for row in configs:
-		keyval=row.split('=')
-		print keyval
-        configmap[keyval[0]] = keyval[1]
-	return configmap
-	"""
         
-def loadSymbolData():		
-	loadRawData(PROP_SYMBOL_DIR,PROP_SYMBOL_FILE)
-	loadRawData(PROP_CLIENTCON_DIR,PROP_CLIENTCON_FILE)
+def loadSymbolData(configData):		
+	return loadRawData(PROP_SYMBOL_DIR,PROP_SYMBOL_FILE, configData)
+	
+def loadClientConigData(configData):		
+	return loadRawData(PROP_CLIENTCON_DIR,PROP_CLIENTCON_FILE, configData)
 
-def loadRawData(dirConfigKey, fileConfigKey):
-	config = loadConfigFile()	
-	inputdir = config[dirConfigKey].strip()
-	inputfilefmt = config[fileConfigKey]
+def loadRawData(dirConfigKey, fileConfigKey, configData):		
+	inputdir = configData[dirConfigKey].strip()
+	inputfilefmt = configData[fileConfigKey]
 	
 	inputfiletoks = inputfilefmt.split('.')	
 	# generate string representation of todays date in pattern specified within input file format 
 	dtToday  = date.today().strftime(inputfiletoks[1])	
 	#lst = os.listdir(inputdir)	
-	#replace date format pattern with result of formatting
-	inputfiletoks[1]=dtToday
+	#replace date format pattern with value of todays date as generated from it
+	inputfiletoks[1] = dtToday
 	expectedname =  '.'.join(inputfiletoks)
-	filename  = inputdir.strip() + '/' + expectedname
+	filepath  = os.path.join(inputdir.strip(), expectedname)
 	
-	f=open(filename.strip())
-	print f.readlines()
-	
-	#filedate=datetime.strptime(filetoks[1], '%d%m%y%H%M')
-	#strlbl = date.today().strftime(filetoks[1])
-	#filetoks[1] = strlbl
-	#if filedate.date == date.today():
-		
-	
+	f=open(filepath.strip())
+	return f.readlines()	
 			
-def fetchRawInputData():
-	pass
-
 def parseSymbolRawInput(symbolData):
 	emailContentBuf = []
 	validateSourceHdrFtr(symbolData, emailContentBuf)
@@ -159,18 +151,8 @@ def rawSymbolDataToIxEye(symbolData):
 	ixEyeData.append(','.join(col[SYMBOL_COL_IDX] for col in symbolHeaderMap.values()))
         #take copy of client records (omit header and footer)
 	clientRecords = symbolData[1:len(symbolData) - 1]
-	ixEyeData.append(''.join(clientRecords))
-
-        #saveToIExEyeFile(ixEyeData, os.sys.argv[2])
-	writeListToFile(ixEyeData, os.sys.argv[2])
-	pass
-	"""
-	for x,token in enumerate(symbolData):s
-		mapval = symbolHeaderMap[x+1]		
-		validator = mapval[1]	
-		print validator(token)	
-		#print token		
-        """
+	ixEyeData.append(''.join(clientRecords))	
+	return ixEyeData	
 
 def rawClientConfigToIxEye(clientConfigData):
 	emailContentBuf = []
@@ -192,36 +174,47 @@ def rawClientConfigToIxEye(clientConfigData):
 		writeListToFile(ixEyeData, os.sys.argv[2])
 	pass
 
+def makeOutputFilePath(prefix, inputfilekey, configData):
+	inputfilefmt = configData[inputfilekey]	
+	inputfiletoks = inputfilefmt.split('.')	
+	# generate string representation of todays date in pattern specified within input file format 
+	dtToday  = datetime.today().strftime(inputfiletoks[1])		
+	#path = configData[PROP_IXEYE_OUT_DIR].strip() + '/' + '{0}.{1}.ixeye.csv'.format(prefix, dtToday)	
+	path = os.path.join(configData[PROP_IXEYE_OUT_DIR].strip(), '{0}.{1}.ixeye.csv'.format(prefix, dtToday))	
+	return path
+	
 def writeListToFile(data, filename):
 	f=open(filename, 'w')        
         for item in ixEyeData:
           print>>f, item
 		
-def sendmail(content):
-	pass
-
-if len(os.sys.argv) < 2:
-	raise Exception('Usage {0} inputfilename'.format(os.sys.argv[0]))
-
-f=open(os.sys.argv[1])
+def sendmail(content, configData):	
+	print configData
+	recipient = configData[PROP_CLIENT_EMAIL].strip()
+	sender = configData[PROP_SENDER_EMAIL].strip()
 	
-lines = f.readlines()
+	msg = MIMEText('Testing')
+	msg['Subject'] = 'ixeye sanity check report for %s' %date.today().strftime('%d/%m/%y')
+	msg['From'] = sender 
+	msg['To'] = recipient
+	
+	s = smtplib.SMTP(configData[PROP_SMTP_HOST].strip())
+	#s.login(configData[PROP_SMTP_USER].strip(), '')
+	s.sendmail(sender, [recipient], msg.as_string())
+	s.quit()
 
-loadSymbolData()
 
-#parseSymbolRawInput(lines)
+if len(os.sys.argv) > 1:
+	configData = loadConfigData(os.sys.argv[1])
+else:
+	configData = loadConfigData()
 
-#rawClientConfigToIxEye(lines)
+symbolData =  loadSymbolData(configData)
+sendmail(symbolData, configData)
+#symbolData =  loadSymbolData(configData)
+#ixEyeData = rawSymbolDataToIxEye(symbolData)
+#writeListToFile(ixEyeData, makeOutputFilePath('Symbol', PROP_SYMBOL_FILE, configData))
 
-#print loadConfigFile()
 
-#rawSymbolDataToIxEye(lines)
 
-"""
-test.txt
-13/12/2012,4
-TD,N,0.01,2,70.08,Y
-BMO,Y,0.01,2,50.08,Y
-RY,Y,0.01,2,60.08,Y
-4
-"""
+
