@@ -218,8 +218,9 @@ if len(os.sys.argv) > 1:
 else:
 	configData = loadConfigData()
 
-print configData
+
 symbolData =  loadSymbolData(configData)
+validateSourceHdrFtr(symbolData, configData)
 #sendmail(symbolData, configData)
 #symbolData =  loadSymbolData(configData)
 #ixEyeData = rawSymbolDataToIxEye(symbolData)
