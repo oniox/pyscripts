@@ -9,7 +9,8 @@ def isbool(value):
 		return bool(1)
 	else: 
 		return bool(0)
-CONFIG_FILE='c:\dev\sanitycheck.config'
+		
+CONFIG_FILE='C:/dev/projects/python/pyscripts/resources/sanitycheck.config'
 
 HEADER_DATE_IDX=0
 HEADER_REC_IDX=1		
@@ -20,6 +21,11 @@ SYMBOL_DATE_FORMAT='%d/%m/%Y'
 TICKER_SYMBOL_IDX = 1
 SYM_SHORT_SELL_IDX = 2
 SYMBOL_COL_IDX = 0
+
+PROP_SYMBOL_DIR='symbol.dir'
+PROP_CLIENTCON_DIR='clientconfig.dir'
+PROP_CLIENTCON_FILE='clientconfig.fileformat'
+PROP_SYMBOL_FILE='symbol.fileformat'
 
 #map of symbol column header index to a tuple of its label and data type (for validation)
 symbolHeaderMap={TICKER_SYMBOL_IDX : ('TICKER SYMBOL', str), SYM_SHORT_SELL_IDX : ('SHORT SELL RESTRICTED', isbool), 3 :  ('MIN TICK SIZE', float), 4 : ('MAX PRICE DEVIATION', int), 5 : ('PREVIOUS CLOSE PRICE', float) , 6 : ('ACTIVE', bool)}
@@ -38,15 +44,45 @@ sessionConfigHeaderMap={1: ( 1, 'CLIENT SESSION ID', str), 2: ( 2, 'VENUE SESSIO
 
 
 def loadConfigFile():
-        f = open(CONFIG_FILE)
-        configs = f.readlines()
-        configmap={}
-        for row in configs:
-                keyval=row.split('=')
-                configmap[keyval[0]] = keyval[1]
-        return configmap
+	f = open(CONFIG_FILE, 'r')
+	configs = f.readlines()	
+	configmap = {}
+	
+	for row in configs:
+		configmap.update(([row.split('=')]))
+	return configmap
+	"""
+	for row in configs:
+		keyval=row.split('=')
+		print keyval
+        configmap[keyval[0]] = keyval[1]
+	return configmap
+	"""
         
-        
+
+def loadSymbolData():
+	config = loadConfigFile()
+	print config
+	folder = config[PROP_SYMBOL_DIR]
+	file = config[PROP_SYMBOL_FILE]
+	
+	filetoks = file.split('.')	
+	
+	dtToday  = date.today().strftime(filetoks[1])	
+	lst = os.listdir(folder.strip())	
+	filetoks[1]=dtToday
+	expectedname =  '.'.join(filetoks)	
+	print expectedname in  lst
+	
+	#filedate=datetime.strptime(filetoks[1], '%d%m%y%H%M')
+	
+	#strlbl = date.today().strftime(filetoks[1])
+	#filetoks[1] = strlbl
+		
+	#if filedate.date == date.today():
+		
+	
+			
 def fetchRawInputData():
 	pass
 
@@ -122,11 +158,7 @@ def rawSymbolDataToIxEye(symbolData):
 	ixEyeData.append(''.join(clientRecords))
 
         #saveToIExEyeFile(ixEyeData, os.sys.argv[2])
-	f=open(os.sys.argv[2], 'w')
-        if not f:
-                raise Exception('No such file {0}'.format(os.sys.argv[2]))
-        for item in ixEyeData:
-          print>>f, item
+	writeListToFile(ixEyeData, os.sys.argv[2])
 	pass
 	"""
 	for x,token in enumerate(symbolData):s
@@ -153,14 +185,14 @@ def rawClientConfigToIxEye(clientConfigData):
                         colTuple = clientLimitsHeaderMap[colIdx]
                         ixEyeRow.append(clientFields[colTuple[0] - 1]) # get equivalent value from source data  
                 ixEyeData.append(','.join(ixEyeRow))
+		writeListToFile(ixEyeData, os.sys.argv[2])
+	pass
 
-        f=open(os.sys.argv[2], 'w')
-        if not f:
-                raise Exception('No such file {0}'.format(os.sys.argv[2]))
+def writeListToFile(data, filename):
+	f=open(filename, 'w')        
         for item in ixEyeData:
           print>>f, item
-	pass
-	
+		
 def sendmail(content):
 	pass
 
@@ -168,20 +200,18 @@ if len(os.sys.argv) < 2:
 	raise Exception('Usage {0} inputfilename'.format(os.sys.argv[0]))
 
 f=open(os.sys.argv[1])
-
-
-if not f:
-	raise Exception('No such file {0}'.format(os.sys.argv[1]))  
 	
 lines = f.readlines()
+
+loadSymbolData()
 
 #parseSymbolRawInput(lines)
 
 #rawClientConfigToIxEye(lines)
 
-print loadConfigFile()
+#print loadConfigFile()
 
-rawSymbolDataToIxEye(lines)
+#rawSymbolDataToIxEye(lines)
 
 """
 test.txt
