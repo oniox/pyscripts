@@ -4,6 +4,7 @@
                                              
 import os
 import io
+import logging
 from datetime import date
 from datetime import datetime
 import smtplib
@@ -17,6 +18,22 @@ def isbool(value):
 		return bool(0)
 		
 CONFIG_FILE='sanitycheck.config'
+
+logger = logging.getLogger('sanitychecker')
+logger.setLevel(logging.INFO)
+# create file handler which logs even debug messages
+fh = logging.FileHandler('sanitychecker.log')
+fh.setLevel(logging.INFO)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+# create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+# add the handlers to the logger
+logger.addHandler(fh)
+logger.addHandler(ch)
 
 HEADER_DATE_IDX=0
 HEADER_REC_IDX=1		
@@ -32,7 +49,7 @@ SYMBOL_TYPE_IDX = 1
 CLIENTCFG_TYPE_IDX = 2
 
 PROP_SYMBOL_DIR='symbol.dir'
-PROP_CLIENTCON_DIR='clientconfig.dir'
+PROP_CLIENTCON_DIR='clientconfig.dirx'
 PROP_CLIENTCON_FILE='clientconfig.fileformat'
 PROP_SYMBOL_FILE='symbol.fileformat'
 PROP_IXEYE_OUT_DIR='ixeye.out.dir'
@@ -67,6 +84,7 @@ def loadProperties(configfile=CONFIG_FILE):
 			propsmap.update(([row.split('=')]))
 		return propsmap
 	except Exception as e:
+		logger.error(e)
 		raise Exception("File processing failed as script config file failed to load {0} ".format(str(e)))
 
 def rawSymbolDataToIxEye(symbolData, emailContentBuf):    
@@ -200,10 +218,9 @@ def loadSymbolData(properties):
 		raise Exception("File processing failed as symbol data failed to to load from file {0} ".format(str(e)))
 	
 def loadClientConfigData(properties):
-	try:
-		return loadRawData(PROP_CLIENTCON_DIR,PROP_CLIENTCON_FILE, properties)
-	except Exception as e:
-		raise Exception("File processing failed as client config data failed to to load from file {0}".format(str(e)))
+	return loadRawData(PROP_CLIENTCON_DIR,PROP_CLIENTCON_FILE, properties)
+	
+		
 
 def loadRawData(dirConfigKey, fileConfigKey, properties):		
 	inputdir = properties[dirConfigKey].strip()
@@ -222,9 +239,8 @@ def loadRawData(dirConfigKey, fileConfigKey, properties):
 	return f.readlines()				
 	
 def log(message):
-	if len(message) is 0:
-		return
-	print "####>>> ", message
+	if len(message) is  not 0:
+		logger.info(message)
 	
 def makeOutputFilePath(prefix, inputfilekey, properties):
 	inputfilefmt = properties[inputfilekey]	
@@ -259,22 +275,38 @@ if len(os.sys.argv) > 1:
 	properties = loadProperties(os.sys.argv[1])
 else:
 	properties = loadProperties()	
-	
-#generate symbols file from input source 
-symbolData =  loadSymbolData(properties)	
-ixEyeData = rawSymbolDataToIxEye(symbolData, emailBuf)
-writeListToFile(ixEyeData, makeOutputFilePath('symbols', PROP_SYMBOL_FILE, properties))
 
+#generate symbols file from input source 
+try:
+	symbolData =  loadSymbolData(properties)	
+	ixEyeData = rawSymbolDataToIxEye(symbolData, emailBuf)
+	#writeListToFile(ixEyeData, makeOutputFilePath('symbols', PROP_SYMBOL_FILE, properties))
+except Exception as e:	
+	logger.error(e)
+	emailBuf.append(str(e))
+	#sendmail(''.join(emailBuf))	
+finally:	
+	log(''.join(emailBuf))
+	
 #client config data is input source of sessionconfig and clientlimits file
-clientConfigData =  loadClientConfigData(properties)
+try:
+	clientConfigData =  loadClientConfigData(properties)
+except Exception as e:
+	emailBuf.append("File processing failed as client config data failed to to load from source / clients file")
+	logger.error(e)
+	raise e	#terminate as further rountines depend on this data 
+finally:
+	log(''.join(emailBuf))
+	
+	
 
 #generate sessionconfig file from source clientconfig data 
 ixEyeData = rawSessionConfigToIxEye(clientConfigData, emailBuf)
-writeListToFile(ixEyeData, makeOutputFilePath('sessionconf', PROP_CLIENTCON_FILE, properties))
+#writeListToFile(ixEyeData, makeOutputFilePath('sessionconf', PROP_CLIENTCON_FILE, properties))
 
 #generate clientlimits file from source clientconfig data 
 ixEyeData = rawClientLimitsToIxEye(clientConfigData, emailBuf)
-writeListToFile(ixEyeData, makeOutputFilePath('clientlimits', PROP_CLIENTCON_FILE, properties))
+#writeListToFile(ixEyeData, makeOutputFilePath('clientlimits', PROP_CLIENTCON_FILE, properties))
 
 
 
