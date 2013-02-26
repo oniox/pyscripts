@@ -156,9 +156,10 @@ def rawClientConfigToIxEye(clientConfigData, colHeaderMap, emailContentBuf):
 				emailContentBuf.append("Record {0} will not be loaded because value {1} of field {2} is of wrong type ".format(clientRow, fieldval, getSymbolColName(colIdx+1)))
 				ixEyeRow = [] #value of invalid type detected in this row, reset row and abort row validation
 				break		
-			ixEyeRow.append(fieldval) 
+			ixEyeRow.append(fieldval)
 		if  len(ixEyeRow) is not 0:
-			ixEyeData.append(','.join(ixEyeRow))		
+			ixEyeData.append(','.join(ixEyeRow))
+	emailBuf.append("{0} records successfully validated for loading from client configuration file".format(len(ixEyeData)-1)) #omit header info
 	return ixEyeData
 
 def validateClientConfigData(clientConfigData, colHeaderMap, emailBuffer):	
@@ -219,10 +220,18 @@ def loadRawData(dirConfigKey, fileConfigKey, properties):
 	inputfiletoks = inputfilefmt.split('.')	
 	# generate string representation of todays date in pattern specified within input file format 
 	dtToday  = date.today().strftime(inputfiletoks[1])	
-	#lst = os.listdir(inputdir)	
+	listDir = os.listdir(inputdir)	
+	expnamepattern = '{0}.{1}'.format(inputfiletoks[0].strip(),dtToday[0:-4])
+	expectedname = ''	
+	for filename in listDir:
+		try:			
+			if filename.index(expnamepattern) is 0:
+				expectedname = filename
+		except Exception as e:
+			pass	
 	#replace date format pattern with value of todays date as generated from it
-	inputfiletoks[1] = dtToday
-	expectedname =  '.'.join(inputfiletoks)
+	#inputfiletoks[1] = dtToday
+	#expectedname =  '.'.join(inputfiletoks)
 	filepath  = os.path.join(inputdir.strip(), expectedname)	
 	f=open(filepath.strip())
 	return f.readlines()				
@@ -258,7 +267,6 @@ def sendmail(content, properties):
 	#s.login(properties[PROP_SMTP_USER].strip(), '')
 	s.sendmail(sender, [recipient], msg.as_string())
 	s.quit()
-
 	
 emailBuf = []
 try:
@@ -294,7 +302,7 @@ except Exception as e:
 try:
 	ixEyeData = rawSessionConfigToIxEye(clientConfigData, emailBuf)
 	outputfile = makeOutputFilePath('sessionconf', PROP_CLIENTCON_FILE, properties)
-	#writeListToFile(ixEyeData, outputfile)
+	writeListToFile(ixEyeData, outputfile)
 	emailBuf.append("Client configuration data successfully loaded into sessionconf file {0}".format(outputfile))
 except Exception as e:
 	logger.error(e)
@@ -304,10 +312,10 @@ except Exception as e:
 try:	 	
 	ixEyeData = rawClientLimitsToIxEye(clientConfigData, emailBuf)
 	outputfile = makeOutputFilePath('clientlimits', PROP_CLIENTCON_FILE, properties)
-	#writeListToFile(ixEyeData, outputfile)
+	writeListToFile(ixEyeData, outputfile)
 	emailBuf.append("Client configuration data successfully loaded into clientlimits file {0}".format(outputfile))
 except Exception as e:
-	emailBuf.append("Loading of client configuration data to clientlimits file failed")
 	logger.error(e)	
+	emailBuf.append("Loading of client configuration data to clientlimits file failed")	
 
 sendmail('\n\t'.join(emailBuf), properties)		
