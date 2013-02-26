@@ -49,7 +49,7 @@ SYMBOL_TYPE_IDX = 1
 CLIENTCFG_TYPE_IDX = 2
 
 PROP_SYMBOL_DIR='symbol.dir'
-PROP_CLIENTCON_DIR='clientconfig.dirx'
+PROP_CLIENTCON_DIR='clientconfig.dir'
 PROP_CLIENTCON_FILE='clientconfig.fileformat'
 PROP_SYMBOL_FILE='symbol.fileformat'
 PROP_IXEYE_OUT_DIR='ixeye.out.dir'
@@ -174,15 +174,11 @@ def validateClientConfigData(clientConfigData, colHeaderMap, emailBuffer):
 	return validatedRecords
 
 def validateSourceHdrFtr(sourceData, emailContentBuf):
-	try:		
-		header = getRawInputHeader(sourceData)
-		dtValid = isHdrDateValid(header[HEADER_DATE_IDX])
-		footer = getRawInputFooter(sourceData)
-		validateHdrFtrValue(header, footer)
-	except Exception as e:
-		emailContentBuf.append("File processing aborted : {0} ".format(str(e)))		
-		raise e	
-
+	header = getRawInputHeader(sourceData)
+	dtValid = isHdrDateValid(header[HEADER_DATE_IDX])
+	footer = getRawInputFooter(sourceData)
+	validateHdrFtrValue(header, footer)
+	
 def validateHdrFtrValue(header, footer):		
 	try:
 		hdrRecNum = int(header[HEADER_REC_IDX]);
@@ -255,8 +251,9 @@ def writeListToFile(data, filename):
         for item in ixEyeData:
           print>>f, item
 		
-def sendmail(content, properties):		
-	recipient = properties[PROP_CLIENT_EMAIL].strip()
+def sendmail(content, properties):			
+	log('Sending the following content to client :\n {0}'.format(content))
+	recipient = properties[PROP_CLIENT_EMAIL].strip()	
 	sender = properties[PROP_SENDER_EMAIL].strip()
 	
 	msg = MIMEText('Testing')
@@ -268,14 +265,18 @@ def sendmail(content, properties):
 	#s.login(properties[PROP_SMTP_USER].strip(), '')
 	s.sendmail(sender, [recipient], msg.as_string())
 	s.quit()
-	
+
 
 emailBuf = []
-if len(os.sys.argv) > 1:
-	properties = loadProperties(os.sys.argv[1])
-else:
-	properties = loadProperties()	
-
+try:
+	if len(os.sys.argv) > 1:
+		properties = loadProperties(os.sys.argv[1])
+	else:
+		properties = loadProperties()	
+except Exception as e:
+	logger.error("Processing aborted, could not load properties / config file : {0}".format(e))	
+	raise e #terminate as subsequent rountines depend on result of this operation 
+	
 #generate symbols file from input source 
 try:
 	symbolData =  loadSymbolData(properties)	
@@ -284,9 +285,6 @@ try:
 except Exception as e:	
 	logger.error(e)
 	emailBuf.append(str(e))
-	#sendmail(''.join(emailBuf))	
-finally:	
-	log(''.join(emailBuf))
 	
 #client config data is input source of sessionconfig and clientlimits file
 try:
@@ -294,51 +292,31 @@ try:
 except Exception as e:
 	emailBuf.append("File processing failed as client config data failed to to load from source / clients file")
 	logger.error(e)
-	raise e	#terminate as further rountines depend on this data 
-finally:
-	log(''.join(emailBuf))
-	
-	
+	sendmail(''.join(emailBuf), properties)	
+	raise e	#terminate as subsequent rountines depend on result of this operation 
 
 #generate sessionconfig file from source clientconfig data 
-ixEyeData = rawSessionConfigToIxEye(clientConfigData, emailBuf)
-#writeListToFile(ixEyeData, makeOutputFilePath('sessionconf', PROP_CLIENTCON_FILE, properties))
+try:
+	ixEyeData = rawSessionConfigToIxEye(clientConfigData, emailBuf)
+	outputfile = makeOutputFilePath('sessionconf', PROP_CLIENTCON_FILE, properties)
+	#writeListToFile(ixEyeData, outputfile)
+	emailBuf.append("Clientconfig data successfully mapped to sessionlimits file {0}".format(outputfile))
+except Exception as e:
+	emailBuf.append("Mapping of clientconfig data to sessionconfig file failed")
+	logger.error(e)		
 
 #generate clientlimits file from source clientconfig data 
-ixEyeData = rawClientLimitsToIxEye(clientConfigData, emailBuf)
-#writeListToFile(ixEyeData, makeOutputFilePath('clientlimits', PROP_CLIENTCON_FILE, properties))
-
-
-
-"""
-try:
-	emailBuf = []
-	if len(os.sys.argv) > 1:
-		configData = loadProperties(os.sys.argv[1])
-	else:
-		configData = loadProperties()
-		
-	symbolData =  loadSymbolData(configData)	
-	ixEyeData = rawSymbolDataToIxEye(symbolData, emailBuf)
-	writeListToFile(ixEyeData, makeOutputFilePath('Symbol', PROP_SYMBOL_FILE, configData))	
-	
-	clientConfigData =  loadClientConfigData(configData)	
-	ixEyeData = rawSessionLimitsToIxEye(symbolData, emailBuf)
-	writeListToFile(ixEyeData, makeOutputFilePath('Symbol', PROP_SYMBOL_FILE, configData))		
+try:	 	
+	ixEyeData = rawClientLimitsToIxEye(clientConfigData, emailBuf)
+	outputfile = makeOutputFilePath('clientlimits', PROP_CLIENTCON_FILE, properties)
+	#writeListToFile(ixEyeData, outputfile)
+	emailBuf.append("Clientconfig data successfully mapped to clientlimits file {0}".format(outputfile))
 except Exception as e:
-	raise e
-	emailBuf.append(str(e))
-	#sendmail(''.join(emailBuf))
-	print emailBuf
-finally:
-	log(''.join(emailBuf))
-	
-	"""
-#validateSourceHdrFtr(symbolData, configData)
-#sendmail(symbolData, configData)
-#symbolData =  loadSymbolData(configData)
-#ixEyeData = rawSymbolDataToIxEye(symbolData)
-#writeListToFile(ixEyeData, makeOutputFilePath('Symbol', PROP_SYMBOL_FILE, configData))
+	emailBuf.append("Mapping of clientconfig data to clientlimits file failed")
+	logger.error(e)	
+
+sendmail('\n\t'.join(emailBuf), properties)		
+
 
 
 
