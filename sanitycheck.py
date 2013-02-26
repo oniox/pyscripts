@@ -88,20 +88,20 @@ def loadProperties(configfile=CONFIG_FILE):
 		raise Exception("File processing failed as script config file failed to load {0} ".format(str(e)))
 
 def rawSymbolDataToIxEye(symbolData, emailContentBuf):    
-	validateSourceHdrFtr(symbolData, emailContentBuf)
+	validateSourceHdrFtr(symbolData, emailContentBuf)		
 	ixEyeData = [] #target data list 
 	#build column header 
 	ixEyeData.append(','.join(col[SYMBOL_COL_IDX] for col in symbolHeaderMap.values()))
-        #take copy of client records (omit header and footer)
+    #take copy of client records (omit header and footer)
 	clientRecords = symbolData[1:len(symbolData) - 1]
-	validatedRecords = validateSymbolData(clientRecords, emailContentBuf)
+	validatedRecords = validateSymbolData(clientRecords, emailContentBuf)	
+	emailBuf.append("{0} records successfully validated for loading into symbols file".format(len(validatedRecords)))
 	ixEyeData.append(''.join(validatedRecords))	
 	return ixEyeData	
 
 def validateSymbolData(symbolData, emailBuffer):
 	validatedRecords = []
-	validRecLen = len(symbolHeaderMap)
-	
+	validRecLen = len(symbolHeaderMap)	
 	for rec in symbolData:		
 		recList=rec.split(',')
 		recLen = len(recList)
@@ -177,7 +177,7 @@ def validateSourceHdrFtr(sourceData, emailContentBuf):
 	header = getRawInputHeader(sourceData)
 	dtValid = isHdrDateValid(header[HEADER_DATE_IDX])
 	footer = getRawInputFooter(sourceData)
-	validateHdrFtrValue(header, footer)
+	validateHdrFtrValue(header, footer)	
 	
 def validateHdrFtrValue(header, footer):		
 	try:
@@ -207,21 +207,15 @@ def isHdrDateValid(recdate):
 	except Exception as e:
 		raise Exception("Header date {0} is not valid, should be in format {1}. {2}".format(recdate, SYMBOL_DATE_FORMAT, str(e)))
 	
-def loadSymbolData(properties):	
-	try:
-		return loadRawData(PROP_SYMBOL_DIR,PROP_SYMBOL_FILE, properties)
-	except Exception as e:
-		raise Exception("File processing failed as symbol data failed to to load from file {0} ".format(str(e)))
+def loadSymbolData(properties):		
+	return loadRawData(PROP_SYMBOL_DIR,PROP_SYMBOL_FILE, properties)
 	
 def loadClientConfigData(properties):
 	return loadRawData(PROP_CLIENTCON_DIR,PROP_CLIENTCON_FILE, properties)
-	
-		
 
 def loadRawData(dirConfigKey, fileConfigKey, properties):		
 	inputdir = properties[dirConfigKey].strip()
-	inputfilefmt = properties[fileConfigKey]
-	
+	inputfilefmt = properties[fileConfigKey]	
 	inputfiletoks = inputfilefmt.split('.')	
 	# generate string representation of todays date in pattern specified within input file format 
 	dtToday  = date.today().strftime(inputfiletoks[1])	
@@ -229,13 +223,12 @@ def loadRawData(dirConfigKey, fileConfigKey, properties):
 	#replace date format pattern with value of todays date as generated from it
 	inputfiletoks[1] = dtToday
 	expectedname =  '.'.join(inputfiletoks)
-	filepath  = os.path.join(inputdir.strip(), expectedname)
-	
+	filepath  = os.path.join(inputdir.strip(), expectedname)	
 	f=open(filepath.strip())
 	return f.readlines()				
 	
 def log(message):
-	if len(message) is  not 0:
+	if len(message) is not 0:
 		logger.info(message)
 	
 def makeOutputFilePath(prefix, inputfilekey, properties):
@@ -256,7 +249,7 @@ def sendmail(content, properties):
 	recipient = properties[PROP_CLIENT_EMAIL].strip()	
 	sender = properties[PROP_SENDER_EMAIL].strip()
 	
-	msg = MIMEText('Testing')
+	msg = MIMEText(content)
 	msg['Subject'] = 'ixeye sanity check report for %s' %date.today().strftime('%d/%m/%y')
 	msg['From'] = sender 
 	msg['To'] = recipient
@@ -266,7 +259,7 @@ def sendmail(content, properties):
 	s.sendmail(sender, [recipient], msg.as_string())
 	s.quit()
 
-
+	
 emailBuf = []
 try:
 	if len(os.sys.argv) > 1:
@@ -280,17 +273,19 @@ except Exception as e:
 #generate symbols file from input source 
 try:
 	symbolData =  loadSymbolData(properties)	
-	ixEyeData = rawSymbolDataToIxEye(symbolData, emailBuf)
-	#writeListToFile(ixEyeData, makeOutputFilePath('symbols', PROP_SYMBOL_FILE, properties))
+	ixEyeData = rawSymbolDataToIxEye(symbolData, emailBuf)	
+	outputfile = makeOutputFilePath('symbols', PROP_SYMBOL_FILE, properties)
+	#writeListToFile(ixEyeData, outputfile)
+	emailBuf.append("Tradeable instruments data successfully loaded into symbols file {1}".format(len(ixEyeData), outputfile))
 except Exception as e:	
 	logger.error(e)
-	emailBuf.append(str(e))
+	emailBuf.append("Loading of tradeable instrument data to symbols file failed >> {0}".format(str(e)))
 	
 #client config data is input source of sessionconfig and clientlimits file
 try:
 	clientConfigData =  loadClientConfigData(properties)
 except Exception as e:
-	emailBuf.append("File processing failed as client config data failed to to load from source / clients file")
+	emailBuf.append("Further processsing aborted, client configuration data failed to load from file >> {0}".format(str(e)))
 	logger.error(e)
 	sendmail(''.join(emailBuf), properties)	
 	raise e	#terminate as subsequent rountines depend on result of this operation 
@@ -300,23 +295,19 @@ try:
 	ixEyeData = rawSessionConfigToIxEye(clientConfigData, emailBuf)
 	outputfile = makeOutputFilePath('sessionconf', PROP_CLIENTCON_FILE, properties)
 	#writeListToFile(ixEyeData, outputfile)
-	emailBuf.append("Clientconfig data successfully mapped to sessionlimits file {0}".format(outputfile))
+	emailBuf.append("Client configuration data successfully loaded into sessionconf file {0}".format(outputfile))
 except Exception as e:
-	emailBuf.append("Mapping of clientconfig data to sessionconfig file failed")
-	logger.error(e)		
+	logger.error(e)
+	emailBuf.append("Loading of client configuration data to sessionconfig file failed")
 
 #generate clientlimits file from source clientconfig data 
 try:	 	
 	ixEyeData = rawClientLimitsToIxEye(clientConfigData, emailBuf)
 	outputfile = makeOutputFilePath('clientlimits', PROP_CLIENTCON_FILE, properties)
 	#writeListToFile(ixEyeData, outputfile)
-	emailBuf.append("Clientconfig data successfully mapped to clientlimits file {0}".format(outputfile))
+	emailBuf.append("Client configuration data successfully loaded into clientlimits file {0}".format(outputfile))
 except Exception as e:
-	emailBuf.append("Mapping of clientconfig data to clientlimits file failed")
+	emailBuf.append("Loading of client configuration data to clientlimits file failed")
 	logger.error(e)	
 
 sendmail('\n\t'.join(emailBuf), properties)		
-
-
-
-
