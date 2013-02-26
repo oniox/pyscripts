@@ -22,6 +22,7 @@ HEADER_DATE_IDX=0
 HEADER_REC_IDX=1		
 MAX_HEADER_TOK_LEN = 2;
 MAX_FOOTER_LEN = 1;
+MAX_CLIENT_REC_LEN=32
 
 SYMBOL_DATE_FORMAT='%d/%m/%Y'
 TICKER_SYMBOL_IDX = 1
@@ -54,72 +55,35 @@ sessionConfigHeaderMap={1: ( 1, 'CLIENT SESSION ID', str), 2: ( 2, 'VENUE SESSIO
 	5: (14, 'CARD ID',str), 6: (12, 'VENUE REMOTE PORT',str), 7: (14,'CLIENT REMOTE PORT', str), 8: ( 21,'CANCEL ON DISCONNECT', str), 9: ( 30, 'HEART-BEAT INTERVAL',str), 
 	10: (15,'VENUE USERNAME', str), 11: (22, 'CLIENT USER NAME', str), 12: (16, 'VENUE PASSWORD',str), 13: (23, 'CLIENT PASSWORD',str), 14: (17,'VENUE SENDERCOMPID', str), 
 	15: (14, 'CLIENT SENDERCOMID',str), 16: (18, 'VENUE TARGETCOMPID',str), 17: (25,'CLIENT TARGETCOMPID', str), 18: (19, 'VENUE SENDERSUBID',str), 19: (26, 'CLIENT SENDERSUBID', str), 
-	20: (20,'VENUE TARGETSUBID',str), 21: (27, 'CLIENT TARGETSUBID',str), 22: (30, 'CLIENT GATEWAY IP','str'), 23: (31,'VENUE GATEWAY IP', str), 24: (9,'ACTIVE',  str)}
+	20: (20,'VENUE TARGETSUBID',str), 21: (27, 'CLIENT TARGETSUBID',str), 22: (30, 'CLIENT GATEWAY IP',str), 23: (31,'VENUE GATEWAY IP', str), 24: (9,'ACTIVE',  str)}
 
 
-def loadConfigData(configfile=CONFIG_FILE):
+def loadProperties(configfile=CONFIG_FILE):
 	try:
 		f = open(configfile, 'r')
-		configs = f.readlines()	
-		configmap = {}	
-		for row in configs:
-			configmap.update(([row.split('=')]))
-		return configmap
+		props = f.readlines()	
+		propsmap = {}	
+		for row in props:
+			propsmap.update(([row.split('=')]))
+		return propsmap
 	except Exception as e:
 		raise Exception("File processing failed as script config file failed to load {0} ".format(str(e)))
-		
-def loadSymbolData(configData):	
-	try:
-		return loadRawData(PROP_SYMBOL_DIR,PROP_SYMBOL_FILE, configData)
-	except Excpetion as e:
-		raise Exception("File processing failed as symbol data failed to to load from file {0} ".format(str(e)))
-	
-def loadClientConigData(configData):
-	try:
-		return loadRawData(PROP_CLIENTCON_DIR,PROP_CLIENTCON_FILE, configData)
-	except Excpetion as e:
-		raise Exception("File processing failed as client config data failed to to load from file {0} ".format(str(e)))
 
-def loadRawData(dirConfigKey, fileConfigKey, configData):		
-	inputdir = configData[dirConfigKey].strip()
-	inputfilefmt = configData[fileConfigKey]
-	
-	inputfiletoks = inputfilefmt.split('.')	
-	# generate string representation of todays date in pattern specified within input file format 
-	dtToday  = date.today().strftime(inputfiletoks[1])	
-	#lst = os.listdir(inputdir)	
-	#replace date format pattern with value of todays date as generated from it
-	inputfiletoks[1] = dtToday
-	expectedname =  '.'.join(inputfiletoks)
-	filepath  = os.path.join(inputdir.strip(), expectedname)
-	
-	f=open(filepath.strip())
-	return f.readlines()	
-			
-def parseSymbolRawInput(symbolData):
-	emailContentBuf = []
+def rawSymbolDataToIxEye(symbolData, emailContentBuf):    
 	validateSourceHdrFtr(symbolData, emailContentBuf)
-	
-	print emailContentBuf
-	
-	copyData = symbolData[1:]
-                
-	currentLine = copyData[0].split(',')
-	isSymRecComplete = len(currentLine) == len(symbolHeaderMap)
-	#print isSymRecComplete
-	
-	isTickerSymbolBlank = len(currentLine[TICKER_SYMBOL_IDX-1]) == 0
-	#print isTickerSymbolBlank
-	isShortSellRestrictedEmpty = len(currentLine[SYM_SHORT_SELL_IDX-1]) == 0
-	#print isShortSellRestrictedEmpty
-	
-	isShortSellRestrictedValid = isbool(currentLine[SYM_SHORT_SELL_IDX-1])
-	#print isShortSellRestrictedValid
+	ixEyeData = [] #target data list 
+	#build column header 
+	ixEyeData.append(','.join(col[SYMBOL_COL_IDX] for col in symbolHeaderMap.values()))
+        #take copy of client records (omit header and footer)
+	clientRecords = symbolData[1:len(symbolData) - 1]
+	validatedRecords = validateSymbolData(clientRecords, emailContentBuf)
+	ixEyeData.append(''.join(validatedRecords))	
+	return ixEyeData	
 
 def validateSymbolData(symbolData, emailBuffer):
 	validatedRecords = []
 	validRecLen = len(symbolHeaderMap)
-			
+	
 	for rec in symbolData:		
 		recList=rec.split(',')
 		recLen = len(recList)
@@ -145,107 +109,129 @@ def validateSymbolData(symbolData, emailBuffer):
 
 def getSymbolColName(colIdx):
 	return symbolHeaderMap[colIdx][SYMBOL_COL_IDX]
-		
 
-def validateClientConfigData(clientConfigData, emailBuffer):
+def rawClientLimitsToIxEye(clientConfigData, emailContentBuf):		
+	return rawClientConfigToIxEye(clientConfigData, clientLimitsHeaderMap, emailContentBuf) 
+
+def rawSessionConfigToIxEye(clientConfigData, emailContentBuf):		
+	return rawClientConfigToIxEye(clientConfigData, sessionConfigHeaderMap, emailContentBuf) 
+	
+def rawClientConfigToIxEye(clientConfigData, colHeaderMap, emailContentBuf):	
+	validateSourceHdrFtr(clientConfigData, emailContentBuf)
+    #apply validation copy of records (omit header and footer)
+	clientRecords = validateClientConfigData(clientConfigData[1:len(clientConfigData) - 1], colHeaderMap, emailContentBuf)	
+	ixEyeData = [] #target data list 
+	#build column header 
+	ixEyeData.append(','.join(col[COL_HDR_IDX] for col in colHeaderMap.values()))        
+	#using data in predefined map, map each client record to ixEye equivalent
+	for clientRow in clientRecords:
+		clientFields = clientRow.split(',')               
+		ixEyeRow = []
+		for colIdx in colHeaderMap.keys():
+			colTuple = colHeaderMap[colIdx]
+			fieldval = clientFields[colTuple[0] - 1] # get equivalent value from source data			
+			validator = colTuple[CLIENTCFG_TYPE_IDX]			
+			try:
+				if len(fieldval) is not 0:
+					validator(fieldval)
+			except ValueError as ve:				
+				emailContentBuf.append("Record {0} will not be loaded because value {1} of field {2} is of wrong type ".format(clientRow, fieldval, getSymbolColName(colIdx+1)))
+				ixEyeRow = [] #value of invalid type detected in this row, reset row and abort row validation
+				break		
+			ixEyeRow.append(fieldval) 
+		if  len(ixEyeRow) is not 0:
+			ixEyeData.append(','.join(ixEyeRow))		
+	return ixEyeData
+
+def validateClientConfigData(clientConfigData, colHeaderMap, emailBuffer):	
 	validatedRecords = []
-	validRecLen = len(clientLimitsHeaderMap)			
+	validRecLen = MAX_CLIENT_REC_LEN			
 	for rec in clientConfigData:		
 		recList=rec.split(',')
 		recLen = len(recList)
 		if recLen is not validRecLen:
 			emailBuffer.append("Record {0} will not be loaded as it contains {1} records, {2} records expected".format(str(rec).strip(), recLen, validRecLen))
-			continue
-		for colIdx,fieldval in enumerate(recList):			
-			validator = clientLimitsHeaderMap[colIdx+1][CLIENTCFG_TYPE_IDX]			
-			try:
-				if len(fieldVal) is not 0:
-					validator(fieldval)
-			except ValueError as ve:				
-				emailBuffer.append("Record {0} will not be loaded because value {1} of field {2} is of wrong type ".format(str(rec), fieldval, getSymbolColName(colIdx+1)))
-				continue		
+			continue			
 		validatedRecords.append(rec)
 	return validatedRecords
-	
+
 def validateSourceHdrFtr(sourceData, emailContentBuf):
 	try:		
 		header = getRawInputHeader(sourceData)
-		dtValid = isDateValid(header[HEADER_DATE_IDX])
+		dtValid = isHdrDateValid(header[HEADER_DATE_IDX])
 		footer = getRawInputFooter(sourceData)
+		validateHdrFtrValue(header, footer)
 	except Exception as e:
-		emailContentBuf.append("File processing aborted > {0} ".format(e.args))		
+		emailContentBuf.append("File processing aborted : {0} ".format(str(e)))		
 		raise e	
-	
-	hdrRecNum = int(header[HEADER_REC_IDX]);
-	ftrRecNum = int(footer);
-	
-	recNumMatch = hdrRecNum == ftrRecNum
-	emailContentBuf.append('Header date {0} is valid '.format(header[HEADER_DATE_IDX]))
-	
-	if recNumMatch:	
-		emailContentBuf.append('Header ({0}) and footer  ({1}) record numbers match'.format(hdrRecNum, ftrRecNum))
-		
-	#sendemail('\n',join(emailContentBuf))
 
-def log(message):
-	if len(message) is 0:
-		return
-	print "####>>> ", message
-	
+def validateHdrFtrValue(header, footer):		
+	try:
+		hdrRecNum = int(header[HEADER_REC_IDX]);
+		ftrRecNum = int(footer);	
+		recNumMatch = hdrRecNum == ftrRecNum
+		if not recNumMatch:
+			raise Exception("Header and footer record count mismatch")
+	except Exception as e:
+		raise Exception("Error validating header / footer  value  : {0} ".format(str(e)))
+
 def getRawInputHeader(inputdata):			
 	header = inputdata[0]	
 	headerToks = header.split(',')
 	if len(headerToks) is MAX_HEADER_TOK_LEN:
 		return headerToks
 	else:					
-		raise Exception('Invalid header {0}, header should be of two values'.format(header.strip()))
+		raise Exception('Invalid header {0}, header should be of two comma seperated values'.format(header.strip()))
 
 def	getRawInputFooter(inputdata):	
 	return inputdata[-1].strip()
 
-def isDateValid(recdate):
+def isHdrDateValid(recdate):
 	try:
 		dt = datetime.strptime(recdate, SYMBOL_DATE_FORMAT)	
 		return type(dt) is datetime
 	except Exception as e:
-		raise e
-		
-def rawSymbolDataToIxEye(symbolData, emailContentBuf):    
-	validateSourceHdrFtr(symbolData, emailContentBuf)
-	ixEyeData = [] #target data list 
-	#build column header 
-	ixEyeData.append(','.join(col[SYMBOL_COL_IDX] for col in symbolHeaderMap.values()))
-        #take copy of client records (omit header and footer)
-	clientRecords = symbolData[1:len(symbolData) - 1]
-	validatedRecords = validateSymbolData(clientRecords, emailContentBuf)
-	ixEyeData.append(''.join(validatedRecords))	
-	return ixEyeData	
+		raise Exception("Header date {0} is not valid, should be in format {1}. {2}".format(recdate, SYMBOL_DATE_FORMAT, str(e)))
+	
+def loadSymbolData(properties):	
+	try:
+		return loadRawData(PROP_SYMBOL_DIR,PROP_SYMBOL_FILE, properties)
+	except Exception as e:
+		raise Exception("File processing failed as symbol data failed to to load from file {0} ".format(str(e)))
+	
+def loadClientConfigData(properties):
+	try:
+		return loadRawData(PROP_CLIENTCON_DIR,PROP_CLIENTCON_FILE, properties)
+	except Exception as e:
+		raise Exception("File processing failed as client config data failed to to load from file {0}".format(str(e)))
 
-def rawClientConfigToIxEye(clientConfigData, emailContentBuf):	
-	validateSourceHdrFtr(clientConfigData, emailContentBuf)
-    #apply validation copy of records (omit header and footer)
-	clientRecords = validateClientConfigData(clientConfigData[1:len(clientConfigData) - 1], emailContentBuf)
-	ixEyeData = [] #target data list 
-	#build column header 
-	ixEyeData.append(','.join(col[COL_HDR_IDX] for col in clientLimitsHeaderMap.values()))
-        
-	#using data in predefined map, map each client record to ixEye equivalent
-	for clientRow in clientRecords:
-		clientFields = clientRow.split(',')               
-		ixEyeRow = []
-		for colIdx in clientLimitsHeaderMap.keys():
-			colTuple = clientLimitsHeaderMap[colIdx]
-			ixEyeRow.append(clientFields[colTuple[0] - 1]) # get equivalent value from source data  
-		ixEyeData.append(','.join(ixEyeRow))
-	return ixEyeData
-
-def makeOutputFilePath(prefix, inputfilekey, configData):
-	inputfilefmt = configData[inputfilekey]	
+def loadRawData(dirConfigKey, fileConfigKey, properties):		
+	inputdir = properties[dirConfigKey].strip()
+	inputfilefmt = properties[fileConfigKey]
+	
 	inputfiletoks = inputfilefmt.split('.')	
 	# generate string representation of todays date in pattern specified within input file format 
-	dtToday  = datetime.today().strftime(inputfiletoks[1])		
-	#path = configData[PROP_IXEYE_OUT_DIR].strip() + '/' + '{0}.{1}.ixeye.csv'.format(prefix, dtToday)	
-	path = os.path.join(configData[PROP_IXEYE_OUT_DIR].strip(), '{0}.{1}.ixeye.csv'.format(prefix, dtToday))	
+	dtToday  = date.today().strftime(inputfiletoks[1])	
+	#lst = os.listdir(inputdir)	
+	#replace date format pattern with value of todays date as generated from it
+	inputfiletoks[1] = dtToday
+	expectedname =  '.'.join(inputfiletoks)
+	filepath  = os.path.join(inputdir.strip(), expectedname)
+	
+	f=open(filepath.strip())
+	return f.readlines()				
+	
+def log(message):
+	if len(message) is 0:
+		return
+	print "####>>> ", message
+	
+def makeOutputFilePath(prefix, inputfilekey, properties):
+	inputfilefmt = properties[inputfilekey]	
+	inputfiletoks = inputfilefmt.split('.')	
+	# generate string representation of todays date in pattern specified within input file format 
+	dtToday  = datetime.today().strftime(inputfiletoks[1])			
+	path = os.path.join(properties[PROP_IXEYE_OUT_DIR].strip(), '{0}.{1}.txt'.format(prefix, dtToday))	
 	return path
 	
 def writeListToFile(data, filename):
@@ -253,38 +239,69 @@ def writeListToFile(data, filename):
         for item in ixEyeData:
           print>>f, item
 		
-def sendmail(content, configData):		
-	recipient = configData[PROP_CLIENT_EMAIL].strip()
-	sender = configData[PROP_SENDER_EMAIL].strip()
+def sendmail(content, properties):		
+	recipient = properties[PROP_CLIENT_EMAIL].strip()
+	sender = properties[PROP_SENDER_EMAIL].strip()
 	
 	msg = MIMEText('Testing')
 	msg['Subject'] = 'ixeye sanity check report for %s' %date.today().strftime('%d/%m/%y')
 	msg['From'] = sender 
 	msg['To'] = recipient
 	
-	s = smtplib.SMTP(configData[PROP_SMTP_HOST].strip())
-	#s.login(configData[PROP_SMTP_USER].strip(), '')
+	s = smtplib.SMTP(properties[PROP_SMTP_HOST].strip())
+	#s.login(properties[PROP_SMTP_USER].strip(), '')
 	s.sendmail(sender, [recipient], msg.as_string())
 	s.quit()
+	
 
+emailBuf = []
+if len(os.sys.argv) > 1:
+	properties = loadProperties(os.sys.argv[1])
+else:
+	properties = loadProperties()	
+	
+#generate symbols file from input source 
+symbolData =  loadSymbolData(properties)	
+ixEyeData = rawSymbolDataToIxEye(symbolData, emailBuf)
+writeListToFile(ixEyeData, makeOutputFilePath('symbols', PROP_SYMBOL_FILE, properties))
+
+#client config data is input source of sessionconfig and clientlimits file
+clientConfigData =  loadClientConfigData(properties)
+
+#generate sessionconfig file from source clientconfig data 
+ixEyeData = rawSessionConfigToIxEye(clientConfigData, emailBuf)
+writeListToFile(ixEyeData, makeOutputFilePath('sessionconf', PROP_CLIENTCON_FILE, properties))
+
+#generate clientlimits file from source clientconfig data 
+ixEyeData = rawClientLimitsToIxEye(clientConfigData, emailBuf)
+writeListToFile(ixEyeData, makeOutputFilePath('clientlimits', PROP_CLIENTCON_FILE, properties))
+
+
+
+"""
 try:
 	emailBuf = []
 	if len(os.sys.argv) > 1:
-		configData = loadConfigData(os.sys.argv[1])
+		configData = loadProperties(os.sys.argv[1])
 	else:
-		configData = loadConfigData()
+		configData = loadProperties()
+		
 	symbolData =  loadSymbolData(configData)	
 	ixEyeData = rawSymbolDataToIxEye(symbolData, emailBuf)
-	writeListToFile(ixEyeData, makeOutputFilePath('Symbol', PROP_SYMBOL_FILE, configData))
+	writeListToFile(ixEyeData, makeOutputFilePath('Symbol', PROP_SYMBOL_FILE, configData))	
 	
-	
+	clientConfigData =  loadClientConfigData(configData)	
+	ixEyeData = rawSessionLimitsToIxEye(symbolData, emailBuf)
+	writeListToFile(ixEyeData, makeOutputFilePath('Symbol', PROP_SYMBOL_FILE, configData))		
 except Exception as e:
+	raise e
 	emailBuf.append(str(e))
 	#sendmail(''.join(emailBuf))
 	print emailBuf
 finally:
 	log(''.join(emailBuf))
 	
+	"""
 #validateSourceHdrFtr(symbolData, configData)
 #sendmail(symbolData, configData)
 #symbolData =  loadSymbolData(configData)
