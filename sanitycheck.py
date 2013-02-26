@@ -223,15 +223,9 @@ def loadRawData(dirConfigKey, fileConfigKey, properties):
 	listDir = os.listdir(inputdir)	
 	expnamepattern = '{0}.{1}'.format(inputfiletoks[0].strip(),dtToday[0:-4])
 	expectedname = ''	
-	for filename in listDir:
-		try:			
-			if filename.index(expnamepattern) is 0:
-				expectedname = filename
-		except Exception as e:
-			pass	
-	#replace date format pattern with value of todays date as generated from it
-	#inputfiletoks[1] = dtToday
-	#expectedname =  '.'.join(inputfiletoks)
+	for filename in listDir:		
+		if filename.find(expnamepattern) is 0:
+			expectedname = filename				
 	filepath  = os.path.join(inputdir.strip(), expectedname)	
 	f=open(filepath.strip())
 	return f.readlines()				
